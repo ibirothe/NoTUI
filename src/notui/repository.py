@@ -50,7 +50,7 @@ class TodoRepository:
                 )
             return todo
         except sqlite3.Error as exc:
-            raise RepositoryError("Could not create todo") from exc
+            raise RepositoryError("Could not create note") from exc
 
     def get(self, uuid: str) -> Todo | None:
         row = self.connection.execute(
@@ -108,7 +108,7 @@ class TodoRepository:
                     raise TodoNotFoundError(todo.uuid)
             return todo
         except sqlite3.Error as exc:
-            raise RepositoryError("Could not update todo") from exc
+            raise RepositoryError("Could not update note") from exc
 
     def soft_delete(self, uuid: str, deleted_at: str, last_change: str) -> None:
         try:
@@ -124,7 +124,7 @@ class TodoRepository:
                 if cursor.rowcount != 1:
                     raise TodoNotFoundError(uuid)
         except sqlite3.Error as exc:
-            raise RepositoryError("Could not delete todo") from exc
+            raise RepositoryError("Could not delete note") from exc
 
     def count_active(self) -> int:
         row = self.connection.execute(

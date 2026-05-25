@@ -13,9 +13,11 @@ from notui.exceptions import ConfigError
 
 APP_NAME = "notui"
 DEFAULT_DB_NAME = "notui.sqlite"
+THEME_STATE_NAME = "theme.toml"
 
 THEME_KEYS = frozenset({"background", "panel_background", "text", "secondary_text"})
 HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+THEME_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +83,33 @@ def default_db_path() -> Path:
 
 def default_log_path() -> Path:
     return default_state_dir() / "notui.log"
+
+
+def theme_state_path(state_dir: Path) -> Path:
+    return state_dir / THEME_STATE_NAME
+
+
+def load_saved_theme_name(state_dir: Path) -> str | None:
+    path = theme_state_path(state_dir)
+    if not path.exists():
+        return None
+    try:
+        with path.open("rb") as handle:
+            data = tomllib.load(handle)
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+    theme_name = data.get("active_theme")
+    return theme_name if isinstance(theme_name, str) else None
+
+
+def save_theme_name(state_dir: Path, theme_name: str) -> None:
+    if not THEME_NAME_RE.match(theme_name):
+        return
+    try:
+        state_dir.mkdir(parents=True, exist_ok=True)
+        theme_state_path(state_dir).write_text(f'active_theme = "{theme_name}"\n', encoding="utf-8")
+    except OSError:
+        return
 
 
 def _read_config(path: Path) -> dict[str, Any]:

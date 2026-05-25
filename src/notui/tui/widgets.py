@@ -41,7 +41,7 @@ class DetailPanel(Vertical):
         logo = self.query_one("#detail-logo", Static)
         logo.display = True
         if search_active:
-            logo.update("No matching todos.\nEscape clears search.")
+            logo.update("No matching notes.\nEscape clears search.")
         else:
             logo.update(NOTUI_LOGO)
 

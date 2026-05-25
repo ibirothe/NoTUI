@@ -5,6 +5,7 @@ import sqlite3
 import pytest
 
 from notui.app import NoTUIApp
+from notui.config import load_saved_theme_name
 from notui.migrations import migrate
 from notui.repository import TodoRepository
 from notui.services import TodoService
@@ -24,11 +25,11 @@ async def test_app_starts_and_empty_state_renders() -> None:
 
 
 @pytest.mark.asyncio
-async def test_ctrl_t_cycles_theme() -> None:
+async def test_ctrl_t_cycles_and_saves_theme(tmp_path) -> None:
     connection = sqlite3.connect(":memory:")
     connection.row_factory = sqlite3.Row
     migrate(connection)
-    app = NoTUIApp(service=TodoService(TodoRepository(connection)))
+    app = NoTUIApp(service=TodoService(TodoRepository(connection)), state_dir=tmp_path)
 
     async with app.run_test() as pilot:
         assert app.active_theme_name == "dark"
@@ -36,6 +37,11 @@ async def test_ctrl_t_cycles_theme() -> None:
         assert app.active_theme_name == "light"
         assert "#f4f4f4" in app.stylesheet.source[RUNTIME_THEME_SOURCE].content
         assert "Theme: light" in str(pilot.app.screen.query_one("#status").render())
+        assert load_saved_theme_name(tmp_path) == "light"
+
+    next_app = NoTUIApp(service=TodoService(TodoRepository(connection)), state_dir=tmp_path)
+
+    assert next_app.active_theme_name == "light"
 
 
 @pytest.mark.asyncio
@@ -57,7 +63,7 @@ async def test_search_mode_is_visible() -> None:
 
 
 @pytest.mark.asyncio
-async def test_existing_todos_do_not_open_until_selected() -> None:
+async def test_existing_notes_do_not_open_until_selected() -> None:
     connection = sqlite3.connect(":memory:")
     connection.row_factory = sqlite3.Row
     migrate(connection)
@@ -73,7 +79,7 @@ async def test_existing_todos_do_not_open_until_selected() -> None:
 
 
 @pytest.mark.asyncio
-async def test_todo_metadata_uses_muted_detail_widgets() -> None:
+async def test_note_metadata_uses_muted_detail_widgets() -> None:
     connection = sqlite3.connect(":memory:")
     connection.row_factory = sqlite3.Row
     migrate(connection)

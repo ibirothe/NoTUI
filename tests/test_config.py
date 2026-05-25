@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import pytest
 
-from notui.config import THEME_KEYS, Theme, default_db_path, load_config
+from notui.config import (
+    THEME_KEYS,
+    Theme,
+    default_db_path,
+    load_config,
+    load_saved_theme_name,
+    save_theme_name,
+    theme_state_path,
+)
 from notui.exceptions import ConfigError
 from notui.tui.theme import BUILTIN_THEMES, theme_cycle
 
@@ -57,7 +65,7 @@ def test_default_paths_use_notui(monkeypatch: pytest.MonkeyPatch, tmp_path) -> N
 
 
 def test_builtin_themes_use_exact_four_color_tokens() -> None:
-    assert [theme.name for theme in BUILTIN_THEMES] == ["dark", "light", "contrast", "terminal"]
+    assert [theme.name for theme in BUILTIN_THEMES] == ["dark", "light", "cold", "warm"]
     for named_theme in BUILTIN_THEMES:
         assert set(named_theme.theme.as_dict()) == THEME_KEYS
 
@@ -72,5 +80,24 @@ def test_custom_theme_cycle_starts_with_custom_then_builtins() -> None:
 
     cycle = theme_cycle(custom, custom_theme=True)
 
-    assert [theme.name for theme in cycle] == ["custom", "dark", "light", "contrast", "terminal"]
+    assert [theme.name for theme in cycle] == ["custom", "dark", "light", "cold", "warm"]
     assert cycle[0].theme == custom
+
+
+def test_missing_saved_theme_name_returns_none(tmp_path) -> None:
+    assert load_saved_theme_name(tmp_path) is None
+
+
+def test_saved_theme_name_round_trips(tmp_path) -> None:
+    state_dir = tmp_path / "state" / "notui"
+
+    save_theme_name(state_dir, "light")
+
+    assert theme_state_path(state_dir).exists()
+    assert load_saved_theme_name(state_dir) == "light"
+
+
+def test_invalid_theme_state_returns_none(tmp_path) -> None:
+    theme_state_path(tmp_path).write_text("active_theme = 42\n", encoding="utf-8")
+
+    assert load_saved_theme_name(tmp_path) is None

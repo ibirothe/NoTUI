@@ -40,15 +40,6 @@ BUILTIN_THEMES = (
             secondary_text="#915945",
         ),
     ),
-    NamedTheme(
-        "rust",
-        Theme(
-            background="#6b411f",
-            panel_background="#663e23",
-            text="#4b4c4b",
-            secondary_text="#656561",
-        ),
-    ),
 )
 
 RUNTIME_THEME_SOURCE = ("notui", "runtime-theme")

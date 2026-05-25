@@ -26,7 +26,7 @@ uv run ruff format --check
 
 ```bash
 notui
-notui --db /path/to/todos.sqlite
+notui --db /path/to/notes.sqlite
 notui --config /path/to/config.toml
 notui --version
 notui doctor
@@ -40,16 +40,16 @@ back to `~/.local/share/notui/notui.sqlite`.
 ```text
 q             quit
 ?             help
-n             new todo
-enter         open selected todo
-e             edit selected todo
-d             delete selected todo
+n             new note
+enter         open selected note
+e             edit selected note
+d             delete selected note
 /             search
 escape        clear search or cancel edit
 j/down        move down
 k/up          move up
-g             first todo
-G             last todo
+g             first note
+G             last note
 r             refresh
 ctrl+s        save in editor
 ctrl+t        cycle theme
@@ -65,6 +65,8 @@ bind = SUPER, N, exec, alacritty --class notui --title NoTUI -e notui
 
 Default config path: `$XDG_CONFIG_HOME/notui/config.toml`, falling back to
 `~/.config/notui/config.toml`.
+The selected theme is saved in `$XDG_STATE_HOME/notui/theme.toml` and restored
+on the next launch.
 
 ```toml
 [database]

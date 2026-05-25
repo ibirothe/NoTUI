@@ -11,7 +11,7 @@ class MigrationError(NoTUIError):
 
 
 class TodoNotFoundError(NoTUIError):
-    """Raised when a todo cannot be found."""
+    """Raised when a note cannot be found."""
 
 
 class ValidationError(NoTUIError):

@@ -51,7 +51,7 @@ class ConfirmDeleteModal(ModalScreen[bool]):
     def compose(self) -> ComposeResult:
         with Container(classes="modal"):
             yield Static(
-                f"Delete todo?\n\n{self.title}\n\nPress y to delete, n or escape to cancel."
+                f"Delete note?\n\n{self.title}\n\nPress y to delete, n or escape to cancel."
             )
 
     def action_confirm(self) -> None:
@@ -211,7 +211,7 @@ class MainScreen(Screen[None]):
             yield Input(placeholder="Press / to search title and content", id="search")
         with Horizontal(id="main"):
             with Vertical(id="list-panel", classes="panel"):
-                yield Static("Todo list", classes="panel-title")
+                yield Static("Note list", classes="panel-title")
                 yield ListView(id="todo-list")
             with Vertical(id="detail-panel", classes="panel"):
                 yield Static("Detail / editor", classes="panel-title")

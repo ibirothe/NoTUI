@@ -19,7 +19,7 @@ def open_connection(path: Path) -> sqlite3.Connection:
         connection.execute("PRAGMA busy_timeout = 3000")
         return connection
     except sqlite3.Error as exc:
-        raise DatabaseOpenError(f"Could not open local todo database at {path}") from exc
+        raise DatabaseOpenError(f"Could not open local note database at {path}") from exc
     except OSError as exc:
         raise DatabaseOpenError(f"Could not create database directory for {path}") from exc
 

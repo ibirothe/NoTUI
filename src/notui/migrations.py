@@ -51,4 +51,4 @@ def migrate(connection: sqlite3.Connection) -> None:
                     (1, utc_now()),
                 )
     except sqlite3.Error as exc:
-        raise MigrationError("Could not migrate local todo database") from exc
+        raise MigrationError("Could not migrate local note database") from exc

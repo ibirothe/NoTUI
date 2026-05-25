@@ -98,8 +98,9 @@ def main(argv: list[str] | None = None) -> int:
         NoTUIApp(
             theme=config.theme,
             custom_theme=config.theme_is_custom,
+            state_dir=config.state_dir,
             startup_error=_startup_error(
-                "Could not open local todo database.",
+                "Could not open local note database.",
                 db_path=db_path,
                 log_path=log_path,
             ),
@@ -109,7 +110,12 @@ def main(argv: list[str] | None = None) -> int:
     try:
         repository = TodoRepository(connection, db_path=db_path)
         service = TodoService(repository)
-        NoTUIApp(service=service, theme=config.theme, custom_theme=config.theme_is_custom).run()
+        NoTUIApp(
+            service=service,
+            theme=config.theme,
+            custom_theme=config.theme_is_custom,
+            state_dir=config.state_dir,
+        ).run()
         return 0
     finally:
         connection.close()
