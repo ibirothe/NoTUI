@@ -54,3 +54,6 @@ class NoTUIApp(App[None]):
         self.apply_active_theme()
         self.refresh_css(animate=False)
         return self.active_theme_name
+
+    def action_quit(self) -> None:
+        self.exit()

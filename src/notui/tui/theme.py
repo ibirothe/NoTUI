@@ -57,4 +57,87 @@ $background: {theme.background};
 $panel-background: {theme.panel_background};
 $text: {theme.text};
 $secondary-text: {theme.secondary_text};
+
+Screen {{
+  background: $background;
+  color: $text;
+}}
+
+#topbar {{
+  background: $panel-background;
+  color: $text;
+}}
+
+#top-hints {{
+  color: $secondary-text;
+}}
+
+.panel {{
+  background: $panel-background;
+  color: $text;
+  border: solid $secondary-text;
+}}
+
+.panel-title {{
+  color: $secondary-text;
+}}
+
+.muted {{
+  color: $secondary-text;
+}}
+
+.status {{
+  background: $panel-background;
+  color: $secondary-text;
+}}
+
+#searchbar {{
+  background: $panel-background;
+  color: $text;
+  border: solid $secondary-text;
+}}
+
+#search-label {{
+  color: $secondary-text;
+}}
+
+#search {{
+  background: $background;
+  color: $text;
+  border: solid $secondary-text;
+}}
+
+ListView {{
+  background: $panel-background;
+  color: $text;
+}}
+
+Input {{
+  background: $background;
+  color: $text;
+  border: solid $secondary-text;
+}}
+
+TextArea {{
+  background: $background;
+  color: $text;
+  border: solid $secondary-text;
+}}
+
+Button {{
+  background: $panel-background;
+  color: $text;
+  border: solid $secondary-text;
+}}
+
+ModalScreen {{
+  background: $background;
+  color: $text;
+}}
+
+.modal {{
+  background: $panel-background;
+  color: $text;
+  border: solid $secondary-text;
+}}
 """

@@ -15,7 +15,7 @@ from notui.tui.widgets import DetailPanel, TodoListItem
 
 
 class HelpModal(ModalScreen[None]):
-    BINDINGS = [("escape", "dismiss", "Close")]
+    BINDINGS = [("escape", "dismiss", "Close"), ("q", "quit", "Quit"), ("Q", "quit", "Quit")]
 
     def compose(self) -> ComposeResult:
         with Container(classes="modal"):
@@ -31,9 +31,18 @@ class HelpModal(ModalScreen[None]):
     def action_dismiss(self) -> None:
         self.dismiss(None)
 
+    def action_quit(self) -> None:
+        self.app.exit()
+
 
 class ConfirmDeleteModal(ModalScreen[bool]):
-    BINDINGS = [("y", "confirm", "Yes"), ("n", "cancel", "No"), ("escape", "cancel", "Cancel")]
+    BINDINGS = [
+        ("y", "confirm", "Yes"),
+        ("n", "cancel", "No"),
+        ("escape", "cancel", "Cancel"),
+        ("q", "quit", "Quit"),
+        ("Q", "quit", "Quit"),
+    ]
 
     def __init__(self, title: str) -> None:
         super().__init__()
@@ -51,12 +60,18 @@ class ConfirmDeleteModal(ModalScreen[bool]):
     def action_cancel(self) -> None:
         self.dismiss(False)
 
+    def action_quit(self) -> None:
+        self.dismiss(False)
+        self.app.exit()
+
 
 class DiscardChangesModal(ModalScreen[bool]):
     BINDINGS = [
         ("y", "discard", "Discard"),
         ("n", "cancel", "Cancel"),
         ("escape", "cancel", "Cancel"),
+        ("q", "quit", "Quit"),
+        ("Q", "quit", "Quit"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -71,9 +86,18 @@ class DiscardChangesModal(ModalScreen[bool]):
     def action_cancel(self) -> None:
         self.dismiss(False)
 
+    def action_quit(self) -> None:
+        self.dismiss(False)
+        self.app.exit()
+
 
 class EditorScreen(Screen[bool]):
-    BINDINGS = [("ctrl+s", "save", "Save"), ("escape", "cancel", "Cancel")]
+    BINDINGS = [
+        ("ctrl+s", "save", "Save"),
+        ("escape", "cancel", "Cancel"),
+        ("q", "quit", "Quit"),
+        ("Q", "quit", "Quit"),
+    ]
 
     def __init__(self, service: TodoService, todo: Todo | None = None) -> None:
         super().__init__()
@@ -129,9 +153,12 @@ class EditorScreen(Screen[bool]):
 
         self.app.push_screen(DiscardChangesModal(), on_answer)
 
+    def action_quit(self) -> None:
+        self.app.exit()
+
 
 class ErrorScreen(Screen[None]):
-    BINDINGS = [("q", "quit", "Quit")]
+    BINDINGS = [("q", "quit", "Quit"), ("Q", "quit", "Quit")]
 
     def __init__(self, message: str) -> None:
         super().__init__()
@@ -141,10 +168,14 @@ class ErrorScreen(Screen[None]):
         with Container(classes="modal"):
             yield Static(self.message)
 
+    def action_quit(self) -> None:
+        self.app.exit()
+
 
 class MainScreen(Screen[None]):
     BINDINGS = [
         ("q", "quit", "Quit"),
+        ("Q", "quit", "Quit"),
         ("?", "help", "Help"),
         ("n", "new_todo", "New"),
         ("enter", "open_selected", "Open"),
@@ -169,12 +200,15 @@ class MainScreen(Screen[None]):
         self.selected_uuid: str | None = None
         self.search_query = ""
         self.search_timer: Timer | None = None
+        self.search_active = False
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="topbar"):
             yield Static("NoTUI", id="brand")
             yield Static("n new  ctrl+t theme  ? help", id="top-hints")
-        yield Input(placeholder="Search title and content", id="search")
+        with Horizontal(id="searchbar"):
+            yield Static("FILTER", id="search-label")
+            yield Input(placeholder="Press / to search title and content", id="search")
         with Horizontal(id="main"):
             with Vertical(id="list-panel", classes="panel"):
                 yield Static("Todo list", classes="panel-title")
@@ -189,7 +223,7 @@ class MainScreen(Screen[None]):
         )
 
     def on_mount(self) -> None:
-        self.query_one("#search", Input).display = False
+        self.query_one("#search", Input).disabled = True
         self._apply_responsive_layout()
         self.refresh_todos()
 
@@ -238,6 +272,11 @@ class MainScreen(Screen[None]):
         self.query_one("#status", Static).update(
             f"{mode}  {len(self.todos)} visible  {total} active{suffix}"
         )
+        self._update_search_label()
+
+    def _update_search_label(self) -> None:
+        label = "SEARCH" if self.search_active else "FILTER"
+        self.query_one("#search-label", Static).update(label)
 
     def selected_todo(self) -> Todo | None:
         if self.selected_uuid is None:
@@ -273,6 +312,9 @@ class MainScreen(Screen[None]):
     def action_help(self) -> None:
         self.app.push_screen(HelpModal())
 
+    def action_quit(self) -> None:
+        self.app.exit()
+
     def action_new_todo(self) -> None:
         self.app.push_screen(EditorScreen(self.service), self._after_editor)
 
@@ -299,17 +341,21 @@ class MainScreen(Screen[None]):
 
     def action_search(self) -> None:
         search = self.query_one("#search", Input)
-        search.display = True
+        self.search_active = True
+        search.disabled = False
         search.focus()
-        self.query_one("#status", Static).update("search  enter opens selected  escape clears")
+        self._update_search_label()
+        self.query_one("#status", Static).update("search  typing filters  escape clears")
 
     def action_escape(self) -> None:
         search = self.query_one("#search", Input)
-        if search.display or self.search_query:
+        if self.search_active or self.search_query:
             search.value = ""
-            search.display = False
+            search.disabled = True
+            self.search_active = False
             self.search_query = ""
             self.refresh_todos()
+            self._update_search_label()
             self.query_one("#todo-list", ListView).focus()
 
     def action_cursor_down(self) -> None:
