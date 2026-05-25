@@ -23,21 +23,30 @@ BUILTIN_THEMES = (
         ),
     ),
     NamedTheme(
-        "contrast",
+        "cold",
         Theme(
-            background="#000000",
-            panel_background="#111111",
-            text="#ffffff",
-            secondary_text="#bdbdbd",
+            background="#2c2d2c",
+            panel_background="#1a1716",
+            text="#508968",
+            secondary_text="#496675",
         ),
     ),
     NamedTheme(
-        "terminal",
+        "warm",
         Theme(
-            background="#101010",
-            panel_background="#1c1c1c",
-            text="#d7d7d7",
-            secondary_text="#9e9e9e",
+            background="#241e26",
+            panel_background="#1e1c1d",
+            text="#523f3c",
+            secondary_text="#915945",
+        ),
+    ),
+    NamedTheme(
+        "rust",
+        Theme(
+            background="#6b411f",
+            panel_background="#663e23",
+            text="#4b4c4b",
+            secondary_text="#656561",
         ),
     ),
 )

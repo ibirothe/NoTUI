@@ -1,6 +1,6 @@
 # NoTUI
 
-`NoTUI` is a keyboard-first local todo TUI for Arch Linux and Omarchy. It uses
+`NoTUI` is a keyboard-first local note TUI for Arch. It uses
 Textual for the interface and SQLite for local persistence.
 
 ## Install
@@ -51,43 +51,11 @@ ctrl+s        save in editor
 ctrl+t        cycle theme
 ```
 
-## Omarchy
-
-Launch directly from a terminal:
-
-```bash
-notui
-```
-
-Optional terminal launcher examples:
-
-```bash
-alacritty --class notui --title NoTUI -e notui
-kitty --class notui --title NoTUI notui
-ghostty --class=notui --title=NoTUI -e notui
-wezterm start --class notui -- notui
-```
-
-Optional desktop entry:
-
-```ini
-[Desktop Entry]
-Type=Application
-Name=NoTUI
-Comment=Keyboard-first local todo TUI
-Exec=alacritty --class notui --title NoTUI -e notui
-Terminal=false
-Categories=Utility;ConsoleOnly;
-```
-
 Optional Hyprland binding snippet:
 
 ```conf
 bind = SUPER, N, exec, alacritty --class notui --title NoTUI -e notui
 ```
-
-`NoTUI` does not modify Omarchy, Hyprland, launcher, or terminal configuration
-automatically.
 
 ## Config
 

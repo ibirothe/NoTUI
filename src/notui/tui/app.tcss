@@ -24,7 +24,7 @@ Screen {
 }
 
 #searchbar {
-  height: 3;
+  height: 5;
   background: $panel-background;
   color: $text;
   border: solid $secondary-text;

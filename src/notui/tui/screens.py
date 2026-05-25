@@ -223,6 +223,7 @@ class MainScreen(Screen[None]):
         )
 
     def on_mount(self) -> None:
+        self.query_one("#searchbar", Horizontal).display = False
         self.query_one("#search", Input).disabled = True
         self._apply_responsive_layout()
         self.refresh_todos()
@@ -252,20 +253,18 @@ class MainScreen(Screen[None]):
         list_view.clear()
         for todo in self.todos:
             list_view.append(TodoListItem(todo))
-        if self.todos:
-            if self.selected_uuid not in {todo.uuid for todo in self.todos}:
-                self.selected_uuid = self.todos[0].uuid
-                list_view.index = 0
-            else:
-                list_view.index = next(
-                    index
-                    for index, todo in enumerate(self.todos)
-                    if todo.uuid == self.selected_uuid
-                )
+
+        visible_uuids = {todo.uuid for todo in self.todos}
+        if self.selected_uuid is not None and self.selected_uuid in visible_uuids:
+            list_view.index = next(
+                index for index, todo in enumerate(self.todos) if todo.uuid == self.selected_uuid
+            )
             self._show_selected_detail()
         else:
             self.selected_uuid = None
+            list_view.index = None
             self.query_one("#detail", DetailPanel).show_empty(search_active=bool(self.search_query))
+
         total = self.service.count_active()
         suffix = "  showing latest 500" if total > 500 and not self.search_query else ""
         mode = "search" if self.search_query else "list"
@@ -342,6 +341,7 @@ class MainScreen(Screen[None]):
     def action_search(self) -> None:
         search = self.query_one("#search", Input)
         self.search_active = True
+        self.query_one("#searchbar", Horizontal).display = True
         search.disabled = False
         search.focus()
         self._update_search_label()
@@ -354,6 +354,7 @@ class MainScreen(Screen[None]):
             search.disabled = True
             self.search_active = False
             self.search_query = ""
+            self.query_one("#searchbar", Horizontal).display = False
             self.refresh_todos()
             self._update_search_label()
             self.query_one("#todo-list", ListView).focus()
