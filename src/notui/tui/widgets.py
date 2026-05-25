@@ -5,6 +5,7 @@ from textual.containers import Vertical
 from textual.widgets import Label, ListItem, Static
 
 from notui.models import Todo
+from notui.time import format_display_time
 
 NOTUI_LOGO = """███▄▄▄▄    ▄██████▄      ███     ███    █▄   ▄█
 ███▀▀▀██▄ ███    ███ ▀█████████▄ ███    ███ ███
@@ -57,6 +58,6 @@ class DetailPanel(Vertical):
         changed.display = True
         detail_content.display = True
         title.update(todo.title)
-        created.update(f"Created: {todo.created_at}")
-        changed.update(f"Changed: {todo.last_change}")
-        detail_content.update(f"\nContent\n{content}")
+        created.update(f"Created: {format_display_time(todo.created_at)}")
+        changed.update(f"Changed: {format_display_time(todo.last_change)}")
+        detail_content.update(f"\n{content}")

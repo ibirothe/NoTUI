@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from notui import __version__
 from notui.cli import build_parser, doctor
 from notui.config import AppConfig, Theme, UIConfig
 
@@ -14,7 +15,7 @@ def test_version_uses_brand_name(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit):
         parser.parse_args(["--version"])
 
-    assert capsys.readouterr().out.strip() == "NoTUI 0.1.0"
+    assert capsys.readouterr().out.strip() == f"NoTUI {__version__}"
 
 
 def test_doctor_reports_notui_paths_and_brand(capsys: pytest.CaptureFixture[str], tmp_path) -> None:
@@ -31,6 +32,6 @@ def test_doctor_reports_notui_paths_and_brand(capsys: pytest.CaptureFixture[str]
     assert doctor(config, db_path) == 0
 
     output = capsys.readouterr().out
-    assert "NoTUI version: 0.1.0" in output
+    assert f"NoTUI version: {__version__}" in output
     assert f"Database path: {db_path}" in output
     assert "background: #0b0b0b" in output

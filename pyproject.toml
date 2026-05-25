@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "notui"
-version = "0.1.0"
-description = "Keyboard-first local SQLite note TUI for Arch Linux and Omarchy"
+version = "0.1.2"
+description = "Keyboard-first local SQLite note TUI"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }
-authors = [{ name = "NoTUI contributors" }]
+authors = [{ name = "Pascal Rothe" }]
 dependencies = [
   "platformdirs>=4.2",
   "textual>=0.80",

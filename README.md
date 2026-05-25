@@ -14,14 +14,6 @@ pipx install .
 notui
 ```
 
-Development:
-
-```bash
-uv run pytest
-uv run ruff check
-uv run ruff format --check
-```
-
 ## Commands
 
 ```bash
@@ -51,14 +43,10 @@ k/up          move up
 g             first note
 G             last note
 r             refresh
+ctrl+c        copy selected note content
+ctrl+v        paste clipboard into a new note draft
 ctrl+s        save in editor
 ctrl+t        cycle theme
-```
-
-Optional Hyprland binding snippet:
-
-```conf
-bind = SUPER, N, exec, alacritty --class notui --title NoTUI -e notui
 ```
 
 ## Config

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, Vertical
@@ -8,6 +10,7 @@ from textual.screen import ModalScreen, Screen
 from textual.timer import Timer
 from textual.widgets import Input, ListView, Static, TextArea
 
+from notui.clipboard import ClipboardError, copy_text, paste_text
 from notui.exceptions import NoTUIError, ValidationError
 from notui.models import Todo
 from notui.services import TodoService
@@ -25,6 +28,7 @@ class HelpModal(ModalScreen[None]):
                 "e edit    d delete  / search r refresh\n"
                 "j/down move down    k/up move up\n"
                 "g first   G last    escape cancel or clear\n"
+                "ctrl+c copy note content    ctrl+v paste as note\n"
                 "ctrl+s save in editor    ctrl+t cycle theme",
             )
 
@@ -99,13 +103,18 @@ class EditorScreen(Screen[bool]):
         ("Q", "quit", "Quit"),
     ]
 
-    def __init__(self, service: TodoService, todo: Todo | None = None) -> None:
+    def __init__(
+        self,
+        service: TodoService,
+        todo: Todo | None = None,
+        initial_content: str = "",
+    ) -> None:
         super().__init__()
         self.service = service
         self.todo = todo
         self.initial_title = todo.title if todo else ""
-        self.initial_content = todo.content if todo else ""
-        self.dirty = False
+        self.initial_content = todo.content if todo else initial_content
+        self.dirty = todo is None and bool(initial_content)
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="panel"):
@@ -191,6 +200,8 @@ class MainScreen(Screen[None]):
         ("G", "last", "Last"),
         ("r", "refresh", "Refresh"),
         ("ctrl+t", "cycle_theme", "Theme"),
+        ("ctrl+c", "copy_selected_content", "Copy"),
+        ("ctrl+v", "paste_clipboard_note", "Paste"),
     ]
 
     def __init__(self, service: TodoService) -> None:
@@ -205,7 +216,7 @@ class MainScreen(Screen[None]):
     def compose(self) -> ComposeResult:
         with Horizontal(id="topbar"):
             yield Static("NoTUI", id="brand")
-            yield Static("n new  ctrl+t theme  ? help", id="top-hints")
+            yield Static("n new  ctrl+c copy  ctrl+v paste  ? help", id="top-hints")
         with Horizontal(id="searchbar"):
             yield Static("FILTER", id="search-label")
             yield Input(placeholder="Press / to search title and content", id="search")
@@ -214,10 +225,9 @@ class MainScreen(Screen[None]):
                 yield Static("Note list", classes="panel-title")
                 yield ListView(id="todo-list")
             with Vertical(id="detail-panel", classes="panel"):
-                yield Static("Detail / editor", classes="panel-title")
                 yield DetailPanel(id="detail")
         yield Static(
-            "list  up/down move  enter open  e edit  ctrl+t theme  / search  q quit",
+            "list  up/down move  enter open  e edit  ctrl+c copy  ctrl+v paste  q quit",
             id="status",
             classes="status",
         )
@@ -382,3 +392,35 @@ class MainScreen(Screen[None]):
             return
         theme_name = cycle_theme()
         self.query_one("#status", Static).update(f"list  Theme: {theme_name}")
+
+    async def action_copy_selected_content(self) -> None:
+        if self.search_active:
+            return
+        todo = self.selected_todo()
+        if todo is None:
+            self.query_one("#status", Static).update("list  No note selected")
+            return
+        self.query_one("#status", Static).update("list  Copying note content")
+        try:
+            await asyncio.to_thread(copy_text, todo.content)
+        except ClipboardError as exc:
+            self.query_one("#status", Static).update(f"list  {exc}")
+            return
+        self.query_one("#status", Static).update("list  Copied note content")
+
+    async def action_paste_clipboard_note(self) -> None:
+        if self.search_active:
+            return
+        self.query_one("#status", Static).update("list  Reading clipboard")
+        try:
+            content = await asyncio.to_thread(paste_text)
+        except ClipboardError as exc:
+            self.query_one("#status", Static).update(f"list  {exc}")
+            return
+        if content == "":
+            self.query_one("#status", Static).update("list  Clipboard is empty")
+            return
+        self.app.push_screen(
+            EditorScreen(self.service, initial_content=content),
+            self._after_editor,
+        )

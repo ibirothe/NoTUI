@@ -3,10 +3,12 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
+from textual.widgets import TextArea
 
 from notui.app import NoTUIApp
 from notui.config import load_saved_theme_name
 from notui.migrations import migrate
+from notui.models import Todo
 from notui.repository import TodoRepository
 from notui.services import TodoService
 from notui.tui.theme import RUNTIME_THEME_SOURCE
@@ -95,6 +97,79 @@ async def test_note_metadata_uses_muted_detail_widgets() -> None:
         assert "Changed:" in str(changed.render())
         assert created.has_class("muted")
         assert changed.has_class("muted")
+
+
+@pytest.mark.asyncio
+async def test_note_metadata_uses_human_readable_dates() -> None:
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    migrate(connection)
+    repository = TodoRepository(connection)
+    repository.insert(
+        Todo(
+            uuid="note-id",
+            title="First note",
+            content="Body",
+            created_at="2026-05-25T13:45:12.123456Z",
+            last_change="2026-05-25T15:45:12+02:00",
+        )
+    )
+    app = NoTUIApp(service=TodoService(repository))
+
+    async with app.run_test() as pilot:
+        await pilot.press("down")
+        created = str(pilot.app.screen.query_one("#detail-created").render())
+        changed = str(pilot.app.screen.query_one("#detail-changed").render())
+        assert "Created: May 25, 2026 at" in created
+        assert "Changed: May 25, 2026 at" in changed
+        assert "T13:45:12" not in created
+        assert "T15:45:12" not in changed
+
+
+@pytest.mark.asyncio
+async def test_ctrl_c_copies_selected_note_content(monkeypatch: pytest.MonkeyPatch) -> None:
+    copied: list[str] = []
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    migrate(connection)
+    service = TodoService(TodoRepository(connection))
+    service.create("First note", "Body")
+    app = NoTUIApp(service=service)
+    monkeypatch.setattr("notui.tui.screens.copy_text", copied.append)
+
+    async with app.run_test() as pilot:
+        await pilot.press("down")
+        await pilot.press("ctrl+c")
+        assert copied == ["Body"]
+        assert "Copied note content" in str(pilot.app.screen.query_one("#status").render())
+
+
+@pytest.mark.asyncio
+async def test_ctrl_v_opens_editor_with_clipboard_content(monkeypatch: pytest.MonkeyPatch) -> None:
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    migrate(connection)
+    app = NoTUIApp(service=TodoService(TodoRepository(connection)))
+    monkeypatch.setattr("notui.tui.screens.paste_text", lambda: "Clipboard body")
+
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+v")
+        await pilot.pause()
+        assert pilot.app.screen.query_one("#editor-content", TextArea).text == "Clipboard body"
+
+
+@pytest.mark.asyncio
+async def test_ctrl_v_ignores_empty_clipboard(monkeypatch: pytest.MonkeyPatch) -> None:
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    migrate(connection)
+    app = NoTUIApp(service=TodoService(TodoRepository(connection)))
+    monkeypatch.setattr("notui.tui.screens.paste_text", lambda: "")
+
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+v")
+        await pilot.pause()
+        assert "Clipboard is empty" in str(pilot.app.screen.query_one("#status").render())
 
 
 @pytest.mark.asyncio
