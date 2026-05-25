@@ -1,0 +1,17 @@
+GLOBAL_BINDINGS = [
+    ("q", "quit", "Quit"),
+    ("?", "help", "Help"),
+    ("n", "new_todo", "New"),
+    ("enter", "open_selected", "Open"),
+    ("e", "edit_selected", "Edit"),
+    ("d", "delete_selected", "Delete"),
+    ("/", "search", "Search"),
+    ("escape", "escape", "Escape"),
+    ("j", "cursor_down", "Down"),
+    ("down", "cursor_down", "Down"),
+    ("k", "cursor_up", "Up"),
+    ("up", "cursor_up", "Up"),
+    ("g", "first", "First"),
+    ("G", "last", "Last"),
+    ("r", "refresh", "Refresh"),
+]

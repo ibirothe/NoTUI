@@ -1,0 +1,119 @@
+$background: #0b0b0b;
+$panel-background: #151515;
+$text: #e8e8e8;
+$secondary-text: #8a8a8a;
+
+Screen {
+  background: $background;
+  color: $text;
+}
+
+#topbar {
+  height: 1;
+  background: $panel-background;
+  color: $text;
+}
+
+#brand {
+  width: 1fr;
+}
+
+#top-hints {
+  width: auto;
+  color: $secondary-text;
+}
+
+#main {
+  height: 1fr;
+}
+
+.panel {
+  background: $panel-background;
+  color: $text;
+  border: solid $secondary-text;
+}
+
+#list-panel {
+  width: 34;
+  min-width: 24;
+}
+
+#detail-panel {
+  width: 1fr;
+}
+
+.stacked {
+  layout: vertical;
+}
+
+.stacked-panel {
+  width: 1fr;
+  height: 1fr;
+}
+
+.panel-title {
+  height: 1;
+  color: $secondary-text;
+}
+
+.muted {
+  color: $secondary-text;
+}
+
+.status {
+  height: 1;
+  background: $panel-background;
+  color: $secondary-text;
+}
+
+#search {
+  height: 3;
+  background: $panel-background;
+  color: $text;
+  border: solid $secondary-text;
+}
+
+ListView {
+  background: $panel-background;
+  color: $text;
+}
+
+ListView > ListItem {
+  height: 1;
+}
+
+ListView > ListItem.--highlight {
+  text-style: reverse bold;
+}
+
+Input {
+  background: $background;
+  color: $text;
+  border: solid $secondary-text;
+}
+
+TextArea {
+  background: $background;
+  color: $text;
+  border: solid $secondary-text;
+}
+
+Button {
+  background: $panel-background;
+  color: $text;
+  border: solid $secondary-text;
+}
+
+ModalScreen {
+  background: $background;
+  color: $text;
+}
+
+.modal {
+  width: 70;
+  height: auto;
+  background: $panel-background;
+  color: $text;
+  border: solid $secondary-text;
+  padding: 1 2;
+}
