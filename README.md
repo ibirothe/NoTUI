@@ -3,6 +3,10 @@
 `NoTUI` is a keyboard-first local note TUI for Arch. It uses
 Textual for the interface and SQLite for local persistence.
 
+<img width="778" height="439" alt="image" src="https://github.com/user-attachments/assets/3f18caac-98b2-4e95-be0b-b3406b0a9a93" />
+<img width="776" height="435" alt="image" src="https://github.com/user-attachments/assets/7c0f7134-71e8-447f-8822-a43d7b736a36" />
+
+
 ## Install
 
 ```bash
