@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import nullcontext
 
 import pytest
 from textual.widgets import TextArea
@@ -170,6 +171,92 @@ async def test_ctrl_v_ignores_empty_clipboard(monkeypatch: pytest.MonkeyPatch) -
         await pilot.press("ctrl+v")
         await pilot.pause()
         assert "Clipboard is empty" in str(pilot.app.screen.query_one("#status").render())
+
+
+@pytest.mark.asyncio
+async def test_ctrl_x_executes_selected_note_content(monkeypatch: pytest.MonkeyPatch) -> None:
+    executed: list[str] = []
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    migrate(connection)
+    service = TodoService(TodoRepository(connection))
+    service.create("First note", "echo hello")
+    app = NoTUIApp(service=service)
+    monkeypatch.setattr(app, "suspend", lambda: nullcontext())
+    monkeypatch.setattr("builtins.print", lambda *args, **kwargs: None)
+    monkeypatch.setattr("builtins.input", lambda prompt="": "")
+    monkeypatch.setattr(
+        "notui.tui.screens.run_note_script",
+        lambda content: executed.append(content) or 7,
+    )
+
+    async with app.run_test() as pilot:
+        await pilot.press("down")
+        await pilot.press("ctrl+x")
+        await pilot.press("y")
+        await pilot.pause()
+        assert executed == ["echo hello"]
+        assert "Script exited 7" in str(pilot.app.screen.query_one("#status").render())
+
+
+@pytest.mark.asyncio
+async def test_ctrl_x_cancel_does_not_execute_note_content(monkeypatch: pytest.MonkeyPatch) -> None:
+    executed: list[str] = []
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    migrate(connection)
+    service = TodoService(TodoRepository(connection))
+    service.create("First note", "echo hello")
+    app = NoTUIApp(service=service)
+    monkeypatch.setattr(
+        "notui.tui.screens.run_note_script",
+        lambda content: executed.append(content) or 0,
+    )
+
+    async with app.run_test() as pilot:
+        await pilot.press("down")
+        await pilot.press("ctrl+x")
+        await pilot.press("n")
+        await pilot.pause()
+        assert executed == []
+
+
+@pytest.mark.asyncio
+async def test_ctrl_x_reports_script_start_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    migrate(connection)
+    service = TodoService(TodoRepository(connection))
+    service.create("First note", "echo hello")
+    app = NoTUIApp(service=service)
+    monkeypatch.setattr(app, "suspend", lambda: nullcontext())
+    monkeypatch.setattr("builtins.print", lambda *args, **kwargs: None)
+    monkeypatch.setattr("builtins.input", lambda prompt="": "")
+    monkeypatch.setattr(
+        "notui.tui.screens.run_note_script",
+        lambda content: (_ for _ in ()).throw(OSError("missing shell")),
+    )
+
+    async with app.run_test() as pilot:
+        await pilot.press("down")
+        await pilot.press("ctrl+x")
+        await pilot.press("y")
+        await pilot.pause()
+        assert "Script failed: missing shell" in str(pilot.app.screen.query_one("#status").render())
+
+
+@pytest.mark.asyncio
+async def test_ctrl_x_requires_selected_note() -> None:
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    migrate(connection)
+    service = TodoService(TodoRepository(connection))
+    service.create("First note", "echo hello")
+    app = NoTUIApp(service=service)
+
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+x")
+        assert "No note selected" in str(pilot.app.screen.query_one("#status").render())
 
 
 @pytest.mark.asyncio

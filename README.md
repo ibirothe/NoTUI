@@ -43,6 +43,7 @@ k/up          move up
 g             first note
 G             last note
 r             refresh
+ctrl+x        run selected note content as a shell script
 ctrl+c        copy selected note content
 ctrl+v        paste clipboard into a new note draft
 ctrl+s        save in editor

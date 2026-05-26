@@ -14,4 +14,5 @@ GLOBAL_BINDINGS = [
     ("g", "first", "First"),
     ("G", "last", "Last"),
     ("r", "refresh", "Refresh"),
+    ("ctrl+x", "execute_selected_content", "Execute"),
 ]
