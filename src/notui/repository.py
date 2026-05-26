@@ -19,6 +19,7 @@ def _row_to_todo(row: sqlite3.Row) -> Todo:
         content=str(row["content"]),
         created_at=str(row["created_at"]),
         last_change=str(row["last_change"]),
+        category=row["category"],
         is_deleted=bool(row["is_deleted"]),
         deleted_at=row["deleted_at"],
     )
@@ -35,8 +36,11 @@ class TodoRepository:
                 self.connection.execute(
                     """
                     INSERT INTO todos
-                    (uuid, title, content, created_at, last_change, is_deleted, deleted_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (
+                        uuid, title, content, created_at, last_change,
+                        category, is_deleted, deleted_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         todo.uuid,
@@ -44,6 +48,7 @@ class TodoRepository:
                         todo.content,
                         todo.created_at,
                         todo.last_change,
+                        todo.category,
                         int(todo.is_deleted),
                         todo.deleted_at,
                     ),
@@ -55,7 +60,7 @@ class TodoRepository:
     def get(self, uuid: str) -> Todo | None:
         row = self.connection.execute(
             """
-            SELECT uuid, title, content, created_at, last_change, is_deleted, deleted_at
+            SELECT uuid, title, content, created_at, last_change, category, is_deleted, deleted_at
             FROM todos
             WHERE uuid = ?
             """,
@@ -66,7 +71,7 @@ class TodoRepository:
     def list_active(self, limit: int = 500, offset: int = 0) -> list[Todo]:
         rows = self.connection.execute(
             """
-            SELECT uuid, title, content, created_at, last_change, is_deleted, deleted_at
+            SELECT uuid, title, content, created_at, last_change, category, is_deleted, deleted_at
             FROM todos
             WHERE is_deleted = 0
             ORDER BY last_change DESC
@@ -82,14 +87,18 @@ class TodoRepository:
         pattern = f"%{query.strip()}%"
         rows = self.connection.execute(
             """
-            SELECT uuid, title, content, created_at, last_change, is_deleted, deleted_at
+            SELECT uuid, title, content, created_at, last_change, category, is_deleted, deleted_at
             FROM todos
             WHERE is_deleted = 0
-              AND (lower(title) LIKE lower(?) OR lower(content) LIKE lower(?))
+              AND (
+                lower(title) LIKE lower(?)
+                OR lower(content) LIKE lower(?)
+                OR lower(category) LIKE lower(?)
+              )
             ORDER BY last_change DESC
             LIMIT ?
             """,
-            (pattern, pattern, limit),
+            (pattern, pattern, pattern, limit),
         ).fetchall()
         return [_row_to_todo(row) for row in rows]
 
@@ -99,10 +108,10 @@ class TodoRepository:
                 cursor = self.connection.execute(
                     """
                     UPDATE todos
-                    SET title = ?, content = ?, last_change = ?
+                    SET title = ?, content = ?, category = ?, last_change = ?
                     WHERE uuid = ? AND is_deleted = 0
                     """,
-                    (todo.title, todo.content, todo.last_change, todo.uuid),
+                    (todo.title, todo.content, todo.category, todo.last_change, todo.uuid),
                 )
                 if cursor.rowcount != 1:
                     raise TodoNotFoundError(todo.uuid)

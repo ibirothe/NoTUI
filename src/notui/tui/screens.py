@@ -16,7 +16,7 @@ from notui.exceptions import NoTUIError, ValidationError
 from notui.models import Todo
 from notui.script_runner import run_note_script
 from notui.services import TodoService
-from notui.tui.widgets import DetailPanel, TodoListItem
+from notui.tui.widgets import CategoryHeaderItem, DetailPanel, TodoListItem, TodoListView
 
 
 class HelpModal(ModalScreen[None]):
@@ -148,6 +148,7 @@ class EditorScreen(Screen[bool]):
         self.service = service
         self.todo = todo
         self.initial_title = todo.title if todo else ""
+        self.initial_category = todo.category if todo and todo.category else ""
         self.initial_content = todo.content if todo else initial_content
         self.dirty = todo is None and bool(initial_content)
 
@@ -155,6 +156,7 @@ class EditorScreen(Screen[bool]):
         with Vertical(classes="panel"):
             yield Static("Editor", classes="panel-title")
             yield Input(value=self.initial_title, placeholder="Title", id="editor-title")
+            yield Input(value=self.initial_category, placeholder="Category", id="editor-category")
             yield TextArea(self.initial_content, id="editor-content")
             yield Static("edit  ctrl+s save  escape cancel", id="editor-status", classes="status")
 
@@ -167,18 +169,19 @@ class EditorScreen(Screen[bool]):
         self.dirty = True
         self.query_one("#editor-status", Static).update("edit  unsaved  ctrl+s save  escape cancel")
 
-    def _values(self) -> tuple[str, str]:
+    def _values(self) -> tuple[str, str, str]:
         title = self.query_one("#editor-title", Input).value
+        category = self.query_one("#editor-category", Input).value
         content = self.query_one("#editor-content", TextArea).text
-        return title, content
+        return title, category, content
 
     def action_save(self) -> None:
-        title, content = self._values()
+        title, category, content = self._values()
         try:
             if self.todo is None:
-                self.service.create(title, content)
+                self.service.create(title, content, category=category)
             else:
-                self.service.update(self.todo.uuid, title, content)
+                self.service.update(self.todo.uuid, title, content, category=category)
         except ValidationError as exc:
             self.query_one("#editor-status", Static).update(f"edit  {exc}")
             return
@@ -244,6 +247,7 @@ class MainScreen(Screen[None]):
         super().__init__()
         self.service = service
         self.todos: list[Todo] = []
+        self.todo_row_indices: dict[str, int] = {}
         self.selected_uuid: str | None = None
         self.search_query = ""
         self.search_timer: Timer | None = None
@@ -259,7 +263,7 @@ class MainScreen(Screen[None]):
         with Horizontal(id="main"):
             with Vertical(id="list-panel", classes="panel"):
                 yield Static("Note list", classes="panel-title")
-                yield ListView(id="todo-list")
+                yield TodoListView(id="todo-list")
             with Vertical(id="detail-panel", classes="panel"):
                 yield DetailPanel(id="detail")
         yield Static(
@@ -297,14 +301,20 @@ class MainScreen(Screen[None]):
 
         list_view = self.query_one("#todo-list", ListView)
         list_view.clear()
-        for todo in self.todos:
-            list_view.append(TodoListItem(todo))
+        self.todo_row_indices = {}
+        row_index = 0
+        for category, todos in self._group_todos_for_display():
+            if category is not None:
+                list_view.append(CategoryHeaderItem(category))
+                row_index += 1
+            for todo in todos:
+                list_view.append(TodoListItem(todo))
+                self.todo_row_indices[todo.uuid] = row_index
+                row_index += 1
 
         visible_uuids = {todo.uuid for todo in self.todos}
         if self.selected_uuid is not None and self.selected_uuid in visible_uuids:
-            list_view.index = next(
-                index for index, todo in enumerate(self.todos) if todo.uuid == self.selected_uuid
-            )
+            list_view.index = self.todo_row_indices[self.selected_uuid]
             self._show_selected_detail()
         else:
             self.selected_uuid = None
@@ -318,6 +328,20 @@ class MainScreen(Screen[None]):
             f"{mode}  {len(self.todos)} visible  {total} active{suffix}"
         )
         self._update_search_label()
+
+    def _group_todos_for_display(self) -> list[tuple[str | None, list[Todo]]]:
+        categorized: dict[str, list[Todo]] = {}
+        uncategorized: list[Todo] = []
+        for todo in self.todos:
+            if todo.category is None:
+                uncategorized.append(todo)
+            else:
+                categorized.setdefault(todo.category, []).append(todo)
+
+        groups: list[tuple[str | None, list[Todo]]] = list(categorized.items())
+        if uncategorized:
+            groups.append((None, uncategorized))
+        return groups
 
     def _update_search_label(self) -> None:
         label = "SEARCH" if self.search_active else "FILTER"
@@ -341,6 +365,10 @@ class MainScreen(Screen[None]):
         if item is not None and hasattr(item, "todo_uuid"):
             self.selected_uuid = item.todo_uuid
             self._show_selected_detail()
+        elif item is not None:
+            selectable_indices = self._selectable_list_indices()
+            if selectable_indices:
+                self.query_one("#todo-list", ListView).index = selectable_indices[0]
 
     @on(Input.Changed, "#search")
     def on_search_changed(self, event: Input.Changed) -> None:
@@ -406,18 +434,45 @@ class MainScreen(Screen[None]):
             self.query_one("#todo-list", ListView).focus()
 
     def action_cursor_down(self) -> None:
-        self.query_one("#todo-list", ListView).action_cursor_down()
+        self._move_cursor(1)
 
     def action_cursor_up(self) -> None:
-        self.query_one("#todo-list", ListView).action_cursor_up()
+        self._move_cursor(-1)
 
     def action_first(self) -> None:
-        if self.todos:
-            self.query_one("#todo-list", ListView).index = 0
+        selectable_indices = self._selectable_list_indices()
+        if selectable_indices:
+            self.query_one("#todo-list", ListView).index = selectable_indices[0]
 
     def action_last(self) -> None:
-        if self.todos:
-            self.query_one("#todo-list", ListView).index = len(self.todos) - 1
+        selectable_indices = self._selectable_list_indices()
+        if selectable_indices:
+            self.query_one("#todo-list", ListView).index = selectable_indices[-1]
+
+    def _move_cursor(self, direction: int) -> None:
+        list_view = self.query_one("#todo-list", ListView)
+        selectable_indices = self._selectable_list_indices()
+        if not selectable_indices:
+            return
+        if list_view.index is None:
+            list_view.index = selectable_indices[0] if direction > 0 else selectable_indices[-1]
+            return
+
+        candidates = (
+            (index for index in selectable_indices if index > list_view.index)
+            if direction > 0
+            else (index for index in reversed(selectable_indices) if index < list_view.index)
+        )
+        with suppress(StopIteration):
+            list_view.index = next(candidates)
+
+    def _selectable_list_indices(self) -> list[int]:
+        list_view = self.query_one("#todo-list", ListView)
+        return [
+            index
+            for index, item in enumerate(list_view.children)
+            if not getattr(item, "disabled", False)
+        ]
 
     def action_refresh(self) -> None:
         self.refresh_todos()

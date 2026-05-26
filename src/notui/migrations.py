@@ -28,6 +28,17 @@ MIGRATION_1 = (
     """,
 )
 
+MIGRATION_2 = (
+    """
+    ALTER TABLE todos
+    ADD COLUMN category TEXT
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_todos_not_deleted_category_last_change
+    ON todos (is_deleted, category, last_change DESC)
+    """,
+)
+
 
 def migrate(connection: sqlite3.Connection) -> None:
     try:
@@ -49,6 +60,13 @@ def migrate(connection: sqlite3.Connection) -> None:
                 connection.execute(
                     "INSERT INTO schema_version (version, applied_at) VALUES (?, ?)",
                     (1, utc_now()),
+                )
+            if current < 2:
+                for statement in MIGRATION_2:
+                    connection.execute(statement)
+                connection.execute(
+                    "INSERT INTO schema_version (version, applied_at) VALUES (?, ?)",
+                    (2, utc_now()),
                 )
     except sqlite3.Error as exc:
         raise MigrationError("Could not migrate local note database") from exc
