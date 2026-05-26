@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 
 from textual import on
 from textual.app import ComposeResult
@@ -13,6 +14,7 @@ from textual.widgets import Input, ListView, Static, TextArea
 from notui.clipboard import ClipboardError, copy_text, paste_text
 from notui.exceptions import NoTUIError, ValidationError
 from notui.models import Todo
+from notui.script_runner import run_note_script
 from notui.services import TodoService
 from notui.tui.widgets import DetailPanel, TodoListItem
 
@@ -28,7 +30,8 @@ class HelpModal(ModalScreen[None]):
                 "e edit    d delete  / search r refresh\n"
                 "j/down move down    k/up move up\n"
                 "g first   G last    escape cancel or clear\n"
-                "ctrl+c copy note content    ctrl+v paste as note\n"
+                "ctrl+x run note content     ctrl+c copy note content\n"
+                "ctrl+v paste as note\n"
                 "ctrl+s save in editor    ctrl+t cycle theme",
             )
 
@@ -56,6 +59,38 @@ class ConfirmDeleteModal(ModalScreen[bool]):
         with Container(classes="modal"):
             yield Static(
                 f"Delete note?\n\n{self.title}\n\nPress y to delete, n or escape to cancel."
+            )
+
+    def action_confirm(self) -> None:
+        self.dismiss(True)
+
+    def action_cancel(self) -> None:
+        self.dismiss(False)
+
+    def action_quit(self) -> None:
+        self.dismiss(False)
+        self.app.exit()
+
+
+class ConfirmExecuteModal(ModalScreen[bool]):
+    BINDINGS = [
+        ("y", "confirm", "Yes"),
+        ("n", "cancel", "No"),
+        ("escape", "cancel", "Cancel"),
+        ("q", "quit", "Quit"),
+        ("Q", "quit", "Quit"),
+    ]
+
+    def __init__(self, title: str) -> None:
+        super().__init__()
+        self.title = title
+
+    def compose(self) -> ComposeResult:
+        with Container(classes="modal"):
+            yield Static(
+                "Execute note as shell script?\n\n"
+                f"{self.title}\n\n"
+                "Press y to execute, n or escape to cancel."
             )
 
     def action_confirm(self) -> None:
@@ -202,6 +237,7 @@ class MainScreen(Screen[None]):
         ("ctrl+t", "cycle_theme", "Theme"),
         ("ctrl+c", "copy_selected_content", "Copy"),
         ("ctrl+v", "paste_clipboard_note", "Paste"),
+        ("ctrl+x", "execute_selected_content", "Execute"),
     ]
 
     def __init__(self, service: TodoService) -> None:
@@ -216,7 +252,7 @@ class MainScreen(Screen[None]):
     def compose(self) -> ComposeResult:
         with Horizontal(id="topbar"):
             yield Static("NoTUI", id="brand")
-            yield Static("n new  ctrl+c copy  ctrl+v paste  ? help", id="top-hints")
+            yield Static("n new  ctrl+x run  ctrl+c copy  ctrl+v paste  ? help", id="top-hints")
         with Horizontal(id="searchbar"):
             yield Static("FILTER", id="search-label")
             yield Input(placeholder="Press / to search title and content", id="search")
@@ -227,7 +263,7 @@ class MainScreen(Screen[None]):
             with Vertical(id="detail-panel", classes="panel"):
                 yield DetailPanel(id="detail")
         yield Static(
-            "list  up/down move  enter open  e edit  ctrl+c copy  ctrl+v paste  q quit",
+            "list  up/down move  enter open  e edit  ctrl+x run  ctrl+c copy  q quit",
             id="status",
             classes="status",
         )
@@ -424,3 +460,37 @@ class MainScreen(Screen[None]):
             EditorScreen(self.service, initial_content=content),
             self._after_editor,
         )
+
+    async def action_execute_selected_content(self) -> None:
+        if self.search_active:
+            return
+        todo = self.selected_todo()
+        if todo is None:
+            self.query_one("#status", Static).update("list  No note selected")
+            return
+
+        def on_confirm(confirmed: bool | None) -> None:
+            if confirmed:
+                self.run_worker(self._execute_note_content(todo), exclusive=True)
+
+        self.app.push_screen(ConfirmExecuteModal(todo.title), on_confirm)
+
+    async def _execute_note_content(self, todo: Todo) -> None:
+        self.query_one("#status", Static).update("list  Executing note content")
+        returncode: int | None = None
+        error: OSError | None = None
+        with self.app.suspend():
+            print(f"NoTUI executing note: {todo.title}")
+            print()
+            try:
+                returncode = run_note_script(todo.content)
+            except OSError as exc:
+                error = exc
+                print(f"NoTUI could not execute note: {exc}")
+            print()
+            with suppress(EOFError):
+                input("Press Enter to return to NoTUI")
+        if error is not None:
+            self.query_one("#status", Static).update(f"list  Script failed: {error}")
+            return
+        self.query_one("#status", Static).update(f"list  Script exited {returncode}")
