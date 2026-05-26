@@ -97,6 +97,11 @@ ListView > ListItem {
   height: 1;
 }
 
+.category-header {
+  color: $secondary-text;
+  text-style: bold;
+}
+
 ListView > ListItem.--highlight {
   text-style: reverse bold;
 }

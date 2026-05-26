@@ -4,7 +4,7 @@ import sqlite3
 from contextlib import nullcontext
 
 import pytest
-from textual.widgets import TextArea
+from textual.widgets import Input, ListView, TextArea
 
 from notui.app import NoTUIApp
 from notui.config import load_saved_theme_name
@@ -157,6 +157,104 @@ async def test_ctrl_v_opens_editor_with_clipboard_content(monkeypatch: pytest.Mo
         await pilot.press("ctrl+v")
         await pilot.pause()
         assert pilot.app.screen.query_one("#editor-content", TextArea).text == "Clipboard body"
+
+
+@pytest.mark.asyncio
+async def test_editor_saves_note_category() -> None:
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    migrate(connection)
+    service = TodoService(TodoRepository(connection))
+    app = NoTUIApp(service=service)
+
+    async with app.run_test() as pilot:
+        await pilot.press("n")
+        pilot.app.screen.query_one("#editor-title", Input).value = "First note"
+        pilot.app.screen.query_one("#editor-category", Input).value = "Work"
+        pilot.app.screen.query_one("#editor-content", TextArea).text = "Body"
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+
+    notes = service.search("work")
+    assert [note.title for note in notes] == ["First note"]
+    assert notes[0].category == "Work"
+
+
+@pytest.mark.asyncio
+async def test_note_list_groups_by_recent_category_and_skips_headers() -> None:
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    migrate(connection)
+    repository = TodoRepository(connection)
+    repository.insert(
+        Todo(
+            uuid="note-1",
+            title="Note 1",
+            content="Body",
+            created_at="2026-05-25T10:00:00Z",
+            last_change="2026-05-25T10:00:00Z",
+            category="Category 1",
+        )
+    )
+    repository.insert(
+        Todo(
+            uuid="note-2",
+            title="Note 2",
+            content="Body",
+            created_at="2026-05-25T09:00:00Z",
+            last_change="2026-05-25T09:00:00Z",
+            category="Category 1",
+        )
+    )
+    repository.insert(
+        Todo(
+            uuid="note-3",
+            title="Note 3",
+            content="Body",
+            created_at="2026-05-25T12:00:00Z",
+            last_change="2026-05-25T12:00:00Z",
+            category="Category 2",
+        )
+    )
+    repository.insert(
+        Todo(
+            uuid="note-4",
+            title="Note 4",
+            content="Body",
+            created_at="2026-05-25T08:00:00Z",
+            last_change="2026-05-25T08:00:00Z",
+            category="Category 2",
+        )
+    )
+    repository.insert(
+        Todo(
+            uuid="note-5",
+            title="Note 5",
+            content="Body",
+            created_at="2026-05-25T11:00:00Z",
+            last_change="2026-05-25T11:00:00Z",
+        )
+    )
+    app = NoTUIApp(service=TodoService(repository))
+
+    async with app.run_test() as pilot:
+        list_view = pilot.app.screen.query_one("#todo-list", ListView)
+        assert [str(item.children[0].render()) for item in list_view.children] == [
+            "Category 2:",
+            "Note 3",
+            "Note 4",
+            "Category 1:",
+            "Note 1",
+            "Note 2",
+            "Note 5",
+        ]
+
+        await pilot.press("down")
+        assert list_view.index == 1
+        assert "Note 3" in str(pilot.app.screen.query_one("#detail-title").render())
+        await pilot.press("G")
+        assert list_view.index == 6
+        assert "Note 5" in str(pilot.app.screen.query_one("#detail-title").render())
 
 
 @pytest.mark.asyncio

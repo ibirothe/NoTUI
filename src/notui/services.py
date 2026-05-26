@@ -10,6 +10,8 @@ from notui.time import utc_now
 
 MAX_TITLE_LENGTH = 200
 MAX_CONTENT_LENGTH = 100_000
+MAX_CATEGORY_LENGTH = 80
+_UNCHANGED = object()
 
 
 def validate_title(title: str) -> str:
@@ -29,11 +31,24 @@ def validate_content(content: str) -> str:
     return content
 
 
+def validate_category(category: str | None) -> str | None:
+    if category is None:
+        return None
+    normalized = category.strip()
+    if not normalized:
+        return None
+    if "\n" in normalized or "\r" in normalized:
+        raise ValidationError("Category must be a single line")
+    if len(normalized) > MAX_CATEGORY_LENGTH:
+        raise ValidationError(f"Category must be {MAX_CATEGORY_LENGTH} characters or fewer")
+    return normalized
+
+
 class TodoService:
     def __init__(self, repository: TodoRepository) -> None:
         self.repository = repository
 
-    def create(self, title: str, content: str = "") -> Todo:
+    def create(self, title: str, content: str = "", category: str | None = None) -> Todo:
         now = utc_now()
         todo = Todo(
             uuid=str(uuid.uuid4()),
@@ -41,6 +56,7 @@ class TodoService:
             content=validate_content(content),
             created_at=now,
             last_change=now,
+            category=validate_category(category),
         )
         return self.repository.insert(todo)
 
@@ -56,12 +72,22 @@ class TodoService:
     def search(self, query: str, limit: int = 500) -> list[Todo]:
         return self.repository.search(query=query, limit=limit)
 
-    def update(self, todo_uuid: str, title: str, content: str) -> Todo:
+    def update(
+        self,
+        todo_uuid: str,
+        title: str,
+        content: str,
+        category: str | None | object = _UNCHANGED,
+    ) -> Todo:
         existing = self.get(todo_uuid)
+        next_category = (
+            existing.category if category is _UNCHANGED else validate_category(category)  # type: ignore[arg-type]
+        )
         updated = replace(
             existing,
             title=validate_title(title),
             content=validate_content(content),
+            category=next_category,
             last_change=utc_now(),
         )
         return self.repository.update(updated)
